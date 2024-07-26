@@ -16,7 +16,7 @@ public class CkanConnection {
     private static final Logger logger = LoggerFactory.getLogger(CkanConnection.class);
 
     public void testCkanConnection() {
-        String ckanUrl = "http://172.22.188.91:80/api/3/action/site_read";
+        String ckanUrl = "http://10.7.41.210:80/api/3/action/site_read";
         ResponseEntity<String> response = restTemplate.getForEntity(ckanUrl, String.class);
         if (response.getStatusCode() == HttpStatus.OK) {
             logger.info("Conexão com CKAN bem-sucedida!");

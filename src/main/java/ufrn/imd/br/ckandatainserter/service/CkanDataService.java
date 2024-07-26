@@ -36,12 +36,13 @@ public class CkanDataService {
 
     private TaxeDataRepository taxeDataRepository;
 
-    private String ckanUrl = "http://172.22.188.91:80";
-    private String jwtToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiI4NlNmNlNrd09DRjhWeXViMUlXZF9EMG5NTkJyRDZMMVItajR3OHJ2YldnIiwiaWF0IjoxNzE4Mjc1ODAzfQ.Nr8IJBr2cRTigovxwOYyA03U3ad55zB7BIii_-wWUng";
+    private String ckanUrl = "http://10.7.41.210:80";
+    private String jwtToken = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJqdGkiOiJJX1h3VkxDX3ZaS1Y4R3pZVWg0SXBYOUlGRHYxcTBNdDNwT3FDZS1yaEJBIiwiaWF0IjoxNzIyMDEyNzkzfQ.InSBvipZldB_TmiNCecBFqvcxsVh-b8Gg4wee2Uaey8";
     private String datasetId = "taxes-dataset"; // ID do dataset
     private String resourceId;
     private int currentPage = 0;
     private final int pageSize = 12;
+    private boolean shouldCleanCsv = false;
 
     public CkanDataService(TaxeDataRepository taxeDataRepository) {
         this.taxeDataRepository = taxeDataRepository;
@@ -57,7 +58,7 @@ public class CkanDataService {
     "author_email": "email@exemplo.com",
     "private": false,
     "license_id": "cc-by",
-    "owner_org": "data-test"
+    "owner_org": "taxes-org"
     }
     """;
 
@@ -67,7 +68,7 @@ public class CkanDataService {
 
         HttpEntity<String> entity = new HttpEntity<>(requestData, headers);
 
-        String apiUrl = "http://172.22.188.91:80/api/3/action/package_create";
+        String apiUrl = "http://10.7.41.210:80/api/3/action/package_create";
         ResponseEntity<String> response = restTemplate.postForEntity(apiUrl, entity, String.class);
         System.out.println("Resposta: " + response.getBody());
 
@@ -90,22 +91,15 @@ public class CkanDataService {
         return tempFile;
     }
 
-    private String uploadCsv(MultipartFile file) throws IOException {
-        String url = ckanUrl + "/api/3/action/resource_create";
+    private void cleanAndRestartCsv() throws IOException {
+        // Create an empty CSV file
+        Path tempFile = createEmptyCsv();
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
-        headers.set("Authorization", jwtToken);
-
-        Path tempFile = Files.createTempFile("ckan-upload", ".csv");
-        Files.write(tempFile, file.getBytes());
-
-        HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(createBody(tempFile), headers);
-        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+        // Upload the empty CSV to CKAN using resource_update
+        MultipartFile file = new MockMultipartFile("file", "data.csv", "text/csv", Files.readAllBytes(tempFile));
+        updateResourceCsv(file);
 
         Files.delete(tempFile);
-
-        return parseResourceId(response.getBody());
     }
 
     private MultiValueMap<String, Object> createBody(Path file) {
@@ -130,6 +124,12 @@ public class CkanDataService {
         }
 
         try {
+            if(shouldCleanCsv){
+                cleanAndRestartCsv();
+                shouldCleanCsv = false;
+                System.out.println("Cleaned the CSV file with resource id: " + this.resourceId);
+                return;
+            }
             Path existingFile = downloadCsvFromCkan();
             List<TaxeData> next12Records;
             List<String> existingLines = new ArrayList<>();
@@ -170,6 +170,7 @@ public class CkanDataService {
 
             if (next12Records.size() < pageSize) {
                 // Reset to the first page if we have less records than page size (end of data)
+                shouldCleanCsv = true;
                 currentPage = 0;
             } else {
                 currentPage++;
@@ -185,6 +186,24 @@ public class CkanDataService {
     private List<TaxeData> fetchNext12RecordsFromDatabase() {
         Page<TaxeData> page = taxeDataRepository.findAll(PageRequest.of(currentPage, pageSize));
         return page.getContent();
+    }
+
+    private String uploadCsv(MultipartFile file) throws IOException {
+        String url = ckanUrl + "/api/3/action/resource_create";
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+        headers.set("Authorization", jwtToken);
+
+        Path tempFile = Files.createTempFile("ckan-upload", ".csv");
+        Files.write(tempFile, file.getBytes());
+
+        HttpEntity<MultiValueMap<String, Object>> entity = new HttpEntity<>(createBody(tempFile), headers);
+        ResponseEntity<String> response = restTemplate.postForEntity(url, entity, String.class);
+
+        Files.delete(tempFile);
+
+        return parseResourceId(response.getBody());
     }
 
     private void updateResourceCsv(MultipartFile file) throws IOException {
@@ -257,6 +276,10 @@ public class CkanDataService {
         Path tempFile = Files.createTempFile("ckan-download", ".csv");
         Files.write(tempFile, body);
         return tempFile;
+    }
+
+    public String getResourceId(){
+        return this.resourceId;
     }
 
 }

@@ -1,5 +1,6 @@
 package ufrn.imd.br.ckandatainserter.controller;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import ufrn.imd.br.ckandatainserter.service.CkanDataService;
 
@@ -28,6 +29,12 @@ public class DataInsertController {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    @GetMapping("/get-resourceId")
+    public ResponseEntity<String> getResourceId(){
+         String resourceId = service.getResourceId();
+         return ResponseEntity.ok(resourceId);
     }
 
 }
