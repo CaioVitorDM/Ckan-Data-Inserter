@@ -1,0 +1,8 @@
+ufrn\imd\br\ckandatainserter\repository\TaxeDataRepository.class
+ufrn\imd\br\ckandatainserter\AppConfig.class
+ufrn\imd\br\ckandatainserter\CkanDataInserterApplication.class
+ufrn\imd\br\ckandatainserter\controller\DataInsertController.class
+ufrn\imd\br\ckandatainserter\service\CkanDataService.class
+ufrn\imd\br\ckandatainserter\CkanConnection.class
+ufrn\imd\br\ckandatainserter\model\TaxType.class
+ufrn\imd\br\ckandatainserter\model\TaxeData.class
